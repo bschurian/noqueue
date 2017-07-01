@@ -37,7 +37,10 @@ libraryDependencies ++= Seq(
   "com.h2database"        %   "h2"                        %      "1.4.187"     %   "test",
   //"com.github.nscala-time" %% "nscala-time" % "2.14.0",
   "org.seleniumhq.selenium" % "selenium-java" % "2.35.0" % "test",
-  filters
+  filters,
+  "org.scalactic" %% "scalactic" % "3.0.1",
+  "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+  "org.scalacheck" %% "scalacheck" % "1.13.4" % "test"
 )
 
 //fork in run := true
