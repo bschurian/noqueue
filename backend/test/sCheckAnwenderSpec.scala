@@ -41,7 +41,7 @@ class sCheckAnwenderSpec extends FreeSpec with Matchers with GeneratorDrivenProp
   def anwEntityToModel(anwE: AnwenderEntity): Future[Anwender] = {
     for {
       regAnwE <- (new UnregistrierterAnwender(db)).registrieren(anwE)
-    } yield new Anwender(db.dal.getAnwenderWithAdress(regAnwE.id.getOrElse(new PK[AnwenderEntity](2))), db)
+    } yield new Anwender(db.dal.getAnwenderWithAdress(regAnwE.id.getOrElse(new PK[AnwenderEntity](2))), db) //TODO erase magic number
   }
 
   implicit val anwEGen = for {
@@ -70,6 +70,7 @@ class sCheckAnwenderSpec extends FreeSpec with Matchers with GeneratorDrivenProp
       anwE.id == None
     }
   }
+
   "Anwenders that were persisted schould have IDless" - {
     forAll(gAnwF) { (anwF: Future[Anwender]) =>
       for {
