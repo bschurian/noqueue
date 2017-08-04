@@ -18,6 +18,7 @@ import scala.concurrent.{ Await, Future }
 /**
  * Created by anwender on 25.01.2017.
  */
+@DoNotDiscover //TODO remove this in all TestSuites
 class AnwenderSpec extends AsyncWordSpec {
 
   override def withFixture(test: NoArgAsyncTest) = { // Define a shared fixture

@@ -3,7 +3,7 @@ import java.sql.SQLException
 import models.UnregistrierterAnwender
 import models.db.{ AnwenderEntity, DAL, PK }
 import org.h2.jdbc.JdbcSQLException
-import org.scalatest.{ Assertion, AsyncFlatSpec, AsyncWordSpec, FutureOutcome }
+import org.scalatest._
 import org.scalatest.Matchers._
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import org.scalatestplus.play.MixedPlaySpec
@@ -18,7 +18,7 @@ import scala.util.{ Failure, Success }
 /**
  * Created by anwender on 19.11.2016.
  */
-
+@DoNotDiscover
 class AccountSpec extends AsyncWordSpec {
   /*val bspAnwenders = List(
     AnwenderEntity("1@example.com", "Uno", "Nomber1"),
