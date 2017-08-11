@@ -8,4 +8,6 @@ backend/project/target
 backend/project/project
 demoserver/node_modules
 backend/logs/
+
 backend/test/sCheckTest.scala
+backend/*/*TryingOut*.scala
