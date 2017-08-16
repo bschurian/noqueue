@@ -15,7 +15,7 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import utils._
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 /**
  * Created by anwender on 09.01.2017.

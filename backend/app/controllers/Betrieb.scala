@@ -20,7 +20,7 @@ import utils.{ OneLeiterRequiredException, UnauthorizedException }
  */
 class Betrieb @Inject() (val dbD: DB, val as: AdressService, val messagesApi: MessagesApi, val config: Configuration) extends api.ApiController {
 
-  import scala.concurrent.ExecutionContext.Implicits.global
+  import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
   def create = SecuredApiActionWithBody { implicit request =>
 

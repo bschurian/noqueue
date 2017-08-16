@@ -5,7 +5,7 @@ import java.sql.Timestamp
 import slick.profile.SqlProfile.ColumnOption.SqlType
 import utils._
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 trait WarteschlangenPlatzComponent {
   this: DriverComponent with AnwenderComponent with MitarbeiterComponent with DienstleistungComponent with DienstleistungsTypComponent with BetriebComponent =>

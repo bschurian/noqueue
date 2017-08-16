@@ -7,7 +7,7 @@ import play.api.libs.json._
 import play.api.libs.ws._
 
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.functional.syntax._
 
 class InvalidGeoCoordsException(msg: String) extends Exception(msg: String)

@@ -12,7 +12,7 @@ import slick.dbio.{ DBIO, DBIOAction }
 import utils.{ InvalidWspSubscribtionException, UnauthorizedException, WspDoesNotExistException }
 
 import scala.concurrent.{ Await, Future }
-import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 

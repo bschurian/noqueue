@@ -1,6 +1,6 @@
 package models.db
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 trait MitarbeiterComponent {
   this: DriverComponent with AnwenderComponent with BetriebComponent with DienstleistungComponent =>

@@ -14,7 +14,7 @@ import scala.concurrent.Future
  * Created by David on 29.11.16.
  */
 class UnregistrierterAnwender(dbD: DB) extends Base(dbD) {
-  import scala.concurrent.ExecutionContext.Implicits.global
+  import play.api.libs.concurrent.Execution.Implicits.defaultContext
   /**
    * Signin for @Anwender
    *

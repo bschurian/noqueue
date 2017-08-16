@@ -2,7 +2,7 @@ package models.db
 
 import slick.jdbc.GetResult
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 trait BetriebComponent {
   this: DriverComponent with AdresseComponent with LeiterComponent with MitarbeiterComponent with DienstleistungComponent with DienstleistungsTypComponent =>

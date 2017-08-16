@@ -3,7 +3,7 @@ package models.db
 import org.mindrot.jbcrypt.BCrypt
 import slick.jdbc.SetParameter
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 /**
  * AnwenderEntity Component Trait including Driver and AdresseEntity Component traits via cake pattern injection

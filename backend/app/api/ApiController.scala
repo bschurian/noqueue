@@ -12,7 +12,7 @@ import models.{ DB, PostgresDB, UnregistrierterAnwender }
 import models.db.{ BetriebEntity, DAL, PK }
 
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.i18n.{ I18nSupport, MessagesApi }
 
 import scala.util.{ Failure, Success, Try }

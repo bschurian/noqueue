@@ -4,7 +4,7 @@ import slick.dbio.DBIO
 
 import javax.inject.Inject
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import scala.concurrent.Future
 
 /**

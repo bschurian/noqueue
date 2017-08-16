@@ -14,7 +14,7 @@ import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import play.api.inject.ApplicationLifecycle
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import scala.concurrent.Future
 
 class Application @Inject() (val dbD: DB, val messagesApi: MessagesApi, val config: Configuration) extends api.ApiController {

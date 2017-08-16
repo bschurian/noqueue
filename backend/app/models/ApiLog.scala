@@ -6,7 +6,7 @@ import play.api.libs.json._
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 /*
 * Stores all the information of a request. Specially used for store the errors in the DB.
