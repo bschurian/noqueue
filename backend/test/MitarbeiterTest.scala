@@ -15,7 +15,6 @@ import scala.concurrent.duration._
 /**
  * Tests for the LeiterEntity
  */
-@DoNotDiscover
 class MitarbeiterTest extends AsyncWordSpec {
 
   val awaitDuration: Duration = 1 seconds

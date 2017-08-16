@@ -18,7 +18,6 @@ import scala.concurrent.{ Await, Future }
 /**
  * Tests for the LeiterEntity
  */
-@DoNotDiscover
 class UnregistrierterAnwenderTest extends AsyncWordSpec {
 
   val awaitDuration: Duration = 1 seconds
