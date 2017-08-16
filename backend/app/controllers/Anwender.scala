@@ -100,7 +100,7 @@ class Anwender @Inject() (val dbD: DB, val as: AdressService, val messagesApi: M
 
   def pwAendern = SecuredApiActionWithBody { implicit request =>
     readFromRequest[(String, String)] {
-      case passwords =>
+      case passwords:(String, String) =>
         request.anwender.passwordVeraendern(passwords._1, passwords._2) flatMap {
           updated =>
             if (updated) {
