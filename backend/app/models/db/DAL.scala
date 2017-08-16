@@ -4,7 +4,8 @@ import slick.driver.JdbcProfile
 
 /** The Data Access Layer contains all components and a driver */
 class DAL(val driver: JdbcProfile)
-    extends AnwenderComponent
+    extends DriverComponent
+    with AnwenderComponent
     with AdresseComponent
     with BetriebComponent
     with DienstleistungComponent
@@ -12,7 +13,7 @@ class DAL(val driver: JdbcProfile)
     with LeiterComponent
     with MitarbeiterComponent
     with WarteschlangenPlatzComponent
-    with DriverComponent {
+    with UserTryingOutComponent {
   import driver.api._
 
   def runScript(location: String) =
@@ -27,6 +28,7 @@ class DAL(val driver: JdbcProfile)
 
   def create =
     (anwenders.schema
+      ++ users.schema
       ++ adresses.schema
       ++ betriebe.schema
       ++ dienstleistungen.schema
