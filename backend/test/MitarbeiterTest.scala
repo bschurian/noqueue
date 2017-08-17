@@ -79,7 +79,7 @@ class MitarbeiterTest extends AsyncWordSpec {
     "access anwender and" should {
       "get the correct anwender returned" in {
         mitarbeiter.anwender map {
-          a => a.id.get should equal(PK[AnwenderEntity](4L))
+          a => a.id should equal(PK[AnwenderEntity](4L))
         }
       }
     }

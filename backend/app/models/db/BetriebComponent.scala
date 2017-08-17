@@ -60,7 +60,7 @@ trait BetriebComponent {
       btr: BetriebEntity <- (betriebeAutoInc += betrieb.copy(adresseId = adr.id.get))
         .map(id => betrieb.copy(id = Option(id), adresseId = adr.id.get))
       anw: AnwenderEntity <- anwender
-      leiter: LeiterEntity <- insert(LeiterEntity(anwenderId = anw.id.get, betriebId = btr.id.get))
+      leiter: LeiterEntity <- insert(LeiterEntity(anwenderId = anw.id, betriebId = btr.id.get))
     } yield (btr, adr)).transactionally
 
   /**

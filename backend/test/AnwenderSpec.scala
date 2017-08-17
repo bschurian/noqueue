@@ -65,7 +65,7 @@ class AnwenderSpec extends AsyncWordSpec {
 
   "An Anwender" should {
     //dummy1@gmail.com', '$2a$10$p3ckLWcp7jUMaPkZP85vkOmrPunxBhjebLyDTAIeGNhQ7y4R64e.G', 'dummy1', 8, 4
-    val expectedAnwender = AnwenderEntity("dummy1@gmail.com", "$2a$10$p3ckLWcp7jUMaPkZP85vkOmrPunxBhjebLyDTAIeGNhQ7y4R64e.G", "dummy1", Some(PK[AdresseEntity](8)), Some(PK[AnwenderEntity](4)))
+    val expectedAnwender = AnwenderEntity("dummy1@gmail.com", "$2a$10$p3ckLWcp7jUMaPkZP85vkOmrPunxBhjebLyDTAIeGNhQ7y4R64e.G", "dummy1", Some(PK[AdresseEntity](8)), PK[AnwenderEntity](4))
     //Bollestraße', '1020', '13509', 'Berlin', 52.591225399999999, 13.2978073999999999, 8
     val expectedAdresse = AdresseEntity("Bollestraße", "1020", "13509", "Berlin", Some(52.591225399999999), Some(13.2978073999999999), Some(PK[AdresseEntity](8)))
     //NULL, 4, 9, 6, NULL, 13
@@ -134,7 +134,7 @@ class AnwenderSpec extends AsyncWordSpec {
       val unregistrierterAnwender = new UnregistrierterAnwender(db)
       for {
         newAnwenderE <- unregistrierterAnwender.registrieren(anw)
-        newAnwender <- Future.successful(new Anwender(db.dal.getAnwenderWithAdress(newAnwenderE.id.get), db))
+        newAnwender <- Future.successful(new Anwender(db.dal.getAnwenderWithAdress(newAnwenderE.id), db))
         pwChanged <- newAnwender.passwordVeraendern(anw.password, pw)
         throwAway <- Future.successful(if (!pwChanged) Failed)
         profil <- newAnwender.profilAnzeigen()
@@ -150,7 +150,7 @@ class AnwenderSpec extends AsyncWordSpec {
       anwender.anwenderSuchen(Some("davidkaatz"), 0, 100) map {
         seq =>
           {
-            assert(seq.exists(_.id.get == PK[AnwenderEntity](3L)))
+            assert(seq.exists(_.id == PK[AnwenderEntity](3L)))
             seq.length should equal(2)
           }
       }
@@ -159,7 +159,7 @@ class AnwenderSpec extends AsyncWordSpec {
       anwender.anwenderSuchen(Some("dkaatz"), 0, 100) map {
         seq =>
           {
-            assert(seq.exists(_.id.get == PK[AnwenderEntity](3L)))
+            assert(seq.exists(_.id == PK[AnwenderEntity](3L)))
             seq.length should equal(2)
           }
       }
@@ -168,7 +168,7 @@ class AnwenderSpec extends AsyncWordSpec {
       anwender.anwenderSuchen(None, 0, 100) map {
         seq =>
           {
-            assert(seq.exists(_.id.get == PK[AnwenderEntity](3L)))
+            assert(seq.exists(_.id.value == 3L))
             seq.length should equal(18)
           }
       }
@@ -176,7 +176,7 @@ class AnwenderSpec extends AsyncWordSpec {
     "return someone else's profile" in {
       for {
         profil <- anwender.anwenderAnzeigen(PK[AnwenderEntity](1L))
-      } yield (profil should equal(AnwenderEntity("davidkaatz5@gmx.de", "$2a$10$LdM4yf7zgmjS8Pb5rGyeeeiUXFFc/wEJfeZloUPbjo8MD/CLA0B0S", "dkaatz5", None, Some(PK[AnwenderEntity](1)))))
+      } yield (profil should equal(AnwenderEntity("davidkaatz5@gmx.de", "$2a$10$LdM4yf7zgmjS8Pb5rGyeeeiUXFFc/wEJfeZloUPbjo8MD/CLA0B0S", "dkaatz5", None, PK[AnwenderEntity](1))))
     }
     "be able to show a WarteschlangePlatz" in {
       for {
@@ -212,9 +212,9 @@ class AnwenderSpec extends AsyncWordSpec {
       val unregistrierterAnwender = new UnregistrierterAnwender(db)
       for {
         newAnwenderE <- unregistrierterAnwender.registrieren(anw)
-        newAnwender = new Anwender(db.dal.getAnwenderWithAdress(newAnwenderE.id.get), db)
+        newAnwender = new Anwender(db.dal.getAnwenderWithAdress(newAnwenderE.id), db)
         wsp <- newAnwender.wsFuerBestimmtenMitarbeiterBeitreten(expectedWsP.dienstLeistungId.value, expectedWsP.mitarbeiterId.value)
-      } yield (wsp should equal(WarteschlangenPlatzEntity(None, newAnwenderE.id.get, expectedWsP.mitarbeiterId, expectedWsP.dienstLeistungId, None, None).copy(id = wsp.id)))
+      } yield (wsp should equal(WarteschlangenPlatzEntity(None, newAnwenderE.id, expectedWsP.mitarbeiterId, expectedWsP.dienstLeistungId, None, None).copy(id = wsp.id)))
     }
     "be able to get next time of a Betrieb" in {
       /*INSERT INTO "MITARBEITER" ("ANWESEND", "BETR_ID", "ANW_ID", "MIT_ID") VALUES (true, 8, 3, 3);

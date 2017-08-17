@@ -33,16 +33,23 @@ trait AnwenderComponent {
      * Default Projection Mapping to case Class
      * @return
      */
-    def * = (nutzerEmail, password, nutzerName, adresseId, id.?) <> (AnwenderEntity.tupled, AnwenderEntity.unapply)
+    def * = (nutzerEmail, password, nutzerName, adresseId, id) <> (AnwenderEntity.tupled, AnwenderEntity.unapply)
   }
 
   val anwenders = TableQuery[AnwenderTable]
 
   private val anwenderAutoInc = anwenders returning anwenders.map(_.id)
 
-  def insert(anwender: AnwenderEntity): DBIO[AnwenderEntity] =
-    if (anwender.adresseId.isEmpty) (anwenderAutoInc += anwender).map(id => anwender.copy(id = Option(id)))
-    else (getAdresseById(anwender.adresseId.get) andThen (anwenderAutoInc += anwender).map(id => anwender.copy(id = Option(id))))
+  def insert(anwender: AnwenderEntity): DBIO[AnwenderEntity] = {
+    for {
+      id <- if (anwender.adresseId.isEmpty) {
+        (anwenderAutoInc += anwender)
+      } else {
+        (getAdresseById(anwender.adresseId.get) andThen (anwenderAutoInc += anwender)) //.flatMap(anwenders.filter(_.id === id))
+      }
+      anwE <- anwenders.filter(_.id === id).result.head
+    } yield anwE
+  }
 
   def getAnwenderById(id: PK[AnwenderEntity]): DBIO[AnwenderEntity] = anwenders.filter(_.id === id).result.head
 

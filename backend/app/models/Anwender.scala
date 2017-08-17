@@ -39,7 +39,7 @@ class Anwender(val anwenderAction: DBIO[(AnwenderEntity, Option[AdresseEntity])]
     for {
       anw <- anwender
       adr <- if (!adrO.isEmpty) db.run(dal.findOrInsert(adrO.get)).map(_.id) else Future.successful(None)
-      updated <- db.run(dal.update((anw.id.get), anwenderEntity.copy(adresseId = adr)))
+      updated <- db.run(dal.update((anw.id), anwenderEntity.copy(adresseId = adr)))
     } yield updated == 1
   }
 
@@ -61,7 +61,7 @@ class Anwender(val anwenderAction: DBIO[(AnwenderEntity, Option[AdresseEntity])]
           Future.successful(Some(Some(seq(1).asInstanceOf[AdresseEntity].id.get))) //asInstance is typecasting
         }
       }
-      updated <- db.run(dal.partialUpdate(seq(0).asInstanceOf[AnwenderEntity].id.get, nutzerName, nutzerEmail, adrIdOptOpt)) //Future.failed(new Exception("too few or too many rows where updated"))
+      updated <- db.run(dal.partialUpdate(seq(0).asInstanceOf[AnwenderEntity].id, nutzerName, nutzerEmail, adrIdOptOpt)) //Future.failed(new Exception("too few or too many rows where updated"))
       /*db.run(dal.partialUpdate(x)) == 1*/
     } yield (updated == 1)
   }
@@ -70,7 +70,7 @@ class Anwender(val anwenderAction: DBIO[(AnwenderEntity, Option[AdresseEntity])]
     for {
       anw <- anwender
       updated <- if (BCrypt.checkpw(oldPassword, anw.password)) {
-        db.run(dal.passwordVeraendern(anw.id.get, newPassword))
+        db.run(dal.passwordVeraendern(anw.id, newPassword))
       } else {
         Future.successful(0) //@todo think about throwing an Exc
       }
@@ -91,14 +91,14 @@ class Anwender(val anwenderAction: DBIO[(AnwenderEntity, Option[AdresseEntity])]
   def wsVerlassen() = {
     for {
       anw <- anwender
-      del <- db.run(dal.deleteWspOfAnw(anw.id.get))
+      del <- db.run(dal.deleteWspOfAnw(anw.id))
     } yield (del == 1)
   }
 
   def meineBetriebe(): Future[Seq[(BetriebAndAdresse, Boolean, Boolean)]] = {
     for {
       anw <- anwender
-      leiter <- db.run(dal.getBetriebeWhereAnwenderIsLeiter(anw.id.get)) map {
+      leiter <- db.run(dal.getBetriebeWhereAnwenderIsLeiter(anw.id)) map {
         case (ll: Seq[(BetriebEntity, AdresseEntity, LeiterEntity)]) => ll.map(
           (l: (BetriebEntity, AdresseEntity, LeiterEntity)) => {
             (BetriebAndAdresse(l._1, l._2), true, false)
@@ -107,7 +107,7 @@ class Anwender(val anwenderAction: DBIO[(AnwenderEntity, Option[AdresseEntity])]
       } recover {
         case nse: NoSuchElementException => Seq.empty
       }
-      mitarbeiter <- db.run(dal.getBetriebeWhereAnwenderIsMitarbeiter(anw.id.get)) map {
+      mitarbeiter <- db.run(dal.getBetriebeWhereAnwenderIsMitarbeiter(anw.id)) map {
         case (ml: Seq[(BetriebEntity, AdresseEntity, MitarbeiterEntity)]) => ml.map(
           (m: (BetriebEntity, AdresseEntity, MitarbeiterEntity)) => (BetriebAndAdresse(m._1, m._2), false, m._3.anwesend)
         )
@@ -134,7 +134,7 @@ class Anwender(val anwenderAction: DBIO[(AnwenderEntity, Option[AdresseEntity])]
   def wsFuerBestimmtenMitarbeiterBeitreten(dlId: Long, mitarbeiterId: Long): Future[WarteschlangenPlatzEntity] = {
     (for {
       anwenderId <- anwender.map(_.id)
-      wsp <- db.run(dal.insert(WarteschlangenPlatzEntity(None, anwenderId.get, PK[MitarbeiterEntity](mitarbeiterId), PK[DienstleistungEntity](dlId))))
+      wsp <- db.run(dal.insert(WarteschlangenPlatzEntity(None, anwenderId, PK[MitarbeiterEntity](mitarbeiterId), PK[DienstleistungEntity](dlId))))
     } yield wsp) recover {
       case sqle: SQLException => if (sqle.getMessage.contains("integrity constraint violation")) throw new InvalidWspSubscribtionException else throw sqle
     }
@@ -144,7 +144,7 @@ class Anwender(val anwenderAction: DBIO[(AnwenderEntity, Option[AdresseEntity])]
     for {
       anw <- anwender
       //wsp of anwender
-      wsp <- db.run(dal.getWarteschlangenPlatzOfAnwender(anw.id.get))
+      wsp <- db.run(dal.getWarteschlangenPlatzOfAnwender(anw.id))
       addr <- db.run(dal.getAdresseById(wsp.map(_._5).get))
       //previous wsps
       prev <- if (wsp.isEmpty) throw new WspDoesNotExistException else db.run(dal.getPrevWarteschlangenplaetze(wsp.get._2, wsp.get._1))

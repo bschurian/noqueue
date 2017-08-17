@@ -33,7 +33,7 @@ class Anwender @Inject() (val dbD: DB, val as: AdressService, val messagesApi: M
         val uAnwender = new UnregistrierterAnwender(dbD)
         uAnwender.registrieren(anw) flatMap {
           //success
-          anw: AnwenderEntity => ok(JwtUtil.signJwtPayload(TokenPayload(anw.id.get.value, DateTime.now().withDurationAdded(TokenExpiration.expirationDuration, 1))));
+          anw: AnwenderEntity => ok(JwtUtil.signJwtPayload(TokenPayload(anw.id.value, DateTime.now().withDurationAdded(TokenExpiration.expirationDuration, 1))));
         }
       }
     }
@@ -44,7 +44,7 @@ class Anwender @Inject() (val dbD: DB, val as: AdressService, val messagesApi: M
       case credentials: Credentials => {
         val uAnwender = new UnregistrierterAnwender(dbD)
         uAnwender.anmelden(credentials.nutzerName, credentials.password) flatMap {
-          case anw: AnwenderEntity => ok(JwtUtil.signJwtPayload(TokenPayload(anw.id.get.value, DateTime.now().withDurationAdded(TokenExpiration.expirationDuration, 1))))
+          case anw: AnwenderEntity => ok(JwtUtil.signJwtPayload(TokenPayload(anw.id.value, DateTime.now().withDurationAdded(TokenExpiration.expirationDuration, 1))))
         }
       }
     }

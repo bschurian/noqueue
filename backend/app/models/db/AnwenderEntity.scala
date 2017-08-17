@@ -14,5 +14,5 @@ case class AnwenderEntity(
   password: String,
   nutzerName: String,
   adresseId: Option[PK[AdresseEntity]] = None,
-  id: Option[PK[AnwenderEntity]] = None
+  id: PK[AnwenderEntity] = PK(0L)
 )

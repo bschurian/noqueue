@@ -39,10 +39,10 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
     .build
   val db: DB = application.injector.instanceOf[DB]
 
-  def anwEntityToModel(anwE: AnwenderEntity): Future[Option[Anwender]] = {
+  def anwEntityToModel(anwE: AnwenderEntity): Future[Anwender] = {
     for {
       regAnwE <- (new UnregistrierterAnwender(db)).registrieren(anwE)
-    } yield regAnwE.id.map { id => new Anwender(db.dal.getAnwenderWithAdress(id), db) }
+    } yield new Anwender(db.dal.getAnwenderWithAdress(regAnwE.id), db)
   }
 
   implicit val anwEGen = for {
@@ -51,7 +51,7 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
     nN <- Gen.alphaStr
   } yield new AnwenderEntity(nE, pW, nN)
 
-  implicit val anwFGen: Gen[Future[Option[Anwender]]] = for {
+  implicit val anwFGen: Gen[Future[Anwender]] = for {
     anwE <- anwEGen
     anwender <- anwEntityToModel(anwE)
   } yield anwender
@@ -65,7 +65,7 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
     }
 
     "that were persisted schould have IDless" - {
-      forAll(anwFGen) { anwOF: Future[Option[Anwender]] =>
+      forAll(anwFGen) { anwOF: Future[Anwender] =>
         /*anwOF map { anwO =>
           anwO flatMap { anw =>
             anw.anwender.map { anwE =>

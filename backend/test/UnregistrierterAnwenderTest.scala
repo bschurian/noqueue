@@ -57,7 +57,7 @@ class UnregistrierterAnwenderTest extends AsyncWordSpec {
       }
       "be able to register with valid data" in {
         ua.registrieren(AnwenderEntity("dummy200@gmail.com", "Myt3stpw!", "dummy200")) map {
-          a => a.id.get should be(PK[AnwenderEntity](20L))
+          a => a.id should be(PK[AnwenderEntity](20L))
         }
       }
     }
@@ -118,7 +118,7 @@ class UnregistrierterAnwenderTest extends AsyncWordSpec {
         for {
           reg <- ua.registrieren(AnwenderEntity("dummy200@gmail.com", "Myt3stpw!", "dummy200"))
           res <- ua.anmelden("dummy200", "Myt3stpw!") map {
-            anw => anw.id.get should be(reg.id.get)
+            anw => anw.id should be(reg.id)
           }
         } yield res
       }
@@ -168,7 +168,7 @@ class UnregistrierterAnwenderTest extends AsyncWordSpec {
       }
       "be able to authenticate with a valid payload" in {
         ua.anmeldenMitPayload(TokenPayload(1L, DateTime.now().withDurationAdded(TokenExpiration.expirationDuration, 1))).anwender map {
-          a => a.id.get.value should be(1L)
+          a => a.id.value should be(1L)
         }
       }
     }

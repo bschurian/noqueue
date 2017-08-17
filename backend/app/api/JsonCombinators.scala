@@ -20,7 +20,7 @@ object JsonCombinators {
 
   implicit val anwenderWrites = new Writes[AnwenderEntity] {
     def writes(a: AnwenderEntity) = Json.obj(
-      "id" -> a.id.getOrElse(PK[AnwenderEntity](0L)).value,
+      "id" -> a.id.value,
       "nutzerEmail" -> a.nutzerEmail,
       "nutzerName" -> a.nutzerName
     )
@@ -31,7 +31,7 @@ object JsonCombinators {
     (__ \ "nutzerName").read[String](minLength[String](1)) and
     (__ \ "adresse").lazyReadNullable[AdresseEntity](adresseReads)
   )((nutzerEmail, nutzerName, adresse) => //the other values will be ignored anyway
-      (AnwenderEntity(nutzerEmail, "", nutzerName, if (!adresse.isEmpty) adresse.get.id else None, Some(PK[AnwenderEntity](0L))), adresse))
+      (AnwenderEntity(nutzerEmail, "", nutzerName, if (!adresse.isEmpty) adresse.get.id else None, PK[AnwenderEntity](0L)), adresse))
 
   /**
    * @todo maybe simplify
@@ -40,7 +40,7 @@ object JsonCombinators {
     def writes(anw: (AnwenderEntity, Option[AdresseEntity])) =
       if (anw._1.adresseId.isEmpty)
         Json.obj(
-          "id" -> anw._1.id.getOrElse(PK[AnwenderEntity](0L)).value,
+          "id" -> anw._1.id.value,
           "nutzerEmail" -> anw._1.nutzerEmail,
           "nutzerName" -> anw._1.nutzerName,
           "adresse" ->
@@ -54,7 +54,7 @@ object JsonCombinators {
         )
       else
         Json.obj(
-          "id" -> anw._1.id.getOrElse(PK[AnwenderEntity](0L)).value,
+          "id" -> anw._1.id.value,
           "nutzerEmail" -> anw._1.nutzerEmail,
           "nutzerName" -> anw._1.nutzerName,
           "adresse" ->
@@ -75,7 +75,7 @@ object JsonCombinators {
     (__ \ "password").read[String](minLength[String](1)) and
     (__ \ "adresse").lazyReadNullable[AdresseEntity](adresseReads)
   )((nutzerEmail, nutzerName, password, adresse) => //the other values will be ignored anyway
-      AnwenderEntity(nutzerEmail, password, nutzerName, if (!adresse.isEmpty) adresse.get.id else None, Some(PK[AnwenderEntity](0L))))
+      AnwenderEntity(nutzerEmail, password, nutzerName, if (!adresse.isEmpty) adresse.get.id else None, PK[AnwenderEntity](0L)))
 
   implicit val optionalAdresseReads: Reads[Option[AdresseEntity]] = (
     (__ \ "adresse").readNullable[AdresseEntity]
@@ -288,42 +288,4 @@ object JsonCombinators {
       )
     }
   }
-  //
-  //  implicit val userWrites = new Writes[User] {
-  //    def writes(u: User) = Json.obj(
-  //      "id" -> u.id,
-  //      "email" -> u.email,
-  //      "name" -> u.name
-  //    )
-  //  }
-  //  implicit val userReads: Reads[User] =
-  //    (__ \ "name").read[String](minLength[String](1)).map(name => User(0L, null, null, name, false, false))
-  //
-  //  implicit val folderWrites = new Writes[Folder] {
-  //    def writes(f: Folder) = Json.obj(
-  //      "id" -> f.id,
-  //      "userId" -> f.userId,
-  //      "order" -> f.order,
-  //      "name" -> f.name
-  //    )
-  //  }
-  //  implicit val folderReads: Reads[Folder] =
-  //    (__ \ "name").read[String](minLength[String](1)).map(name => Folder(0L, 0L, 0, name))
-  //
-  //  implicit val taskWrites = new Writes[Task] {
-  //    def writes(t: Task) = Json.obj(
-  //      "id" -> t.id,
-  //      "folderId" -> t.folderId,
-  //      "order" -> t.order,
-  //      "text" -> t.text,
-  //      "date" -> t.date,
-  //      "deadline" -> t.deadline,
-  //      "done" -> t.done
-  //    )
-  //  }
-  //    implicit val taskReads: Reads[Task] = (
-  //      (__ \ "text").read[String](minLength[String](1)) and
-  //      (__ \ "deadline").readNullable[Date]
-  //    )((text, deadline) => Task(0L, 0L, 0, text, null, deadline, false))
-  //
 }
