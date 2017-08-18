@@ -25,12 +25,12 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
       // Shared setup (run at beginning of each test)
       val fill = new File("./test/fill.sql")
       //Awaiting  to ensure that db is fully cleaned up and filled  before test is started
+      Await.result(db.db.run(db.dal.dropAllObjectsForTestDB()), 10 seconds)
       Await.result(db.db.run(db.dal.create), 10 seconds)
       Await.result(db.db.run(db.dal.runScript(fill.getAbsolutePath)), 10 seconds)
       test()
     } finally {
       // Shared cleanup (run at end of each test)
-      Await.result(db.db.run(db.dal.dropAllObjectsForTestDB()), 10 seconds)
     }
   }
 
@@ -51,10 +51,21 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
     nN <- Gen.alphaStr
   } yield new AnwenderEntity(nE, pW, nN)
 
-  implicit val anwFGen: Gen[Future[Anwender]] = for {
-    anwE <- anwEGen
-    anwender <- anwEntityToModel(anwE)
-  } yield anwender
+  implicit val anwFGen: Gen[Future[Anwender]] = {
+    for {
+      anwE <- anwEGen
+      anwender <- anwEntityToModel(anwE)
+    } yield anwender
+  }
+
+  //less testing
+  val lessTests = Seq(PropertyCheckConfig(minSuccessful = 10))
+
+  "obligatory" - {
+    "failure" in {
+      fail
+    }
+  }
 
   "Anwenders" - {
 
@@ -65,16 +76,13 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
     }
 
     "that were persisted schould have IDless" - {
-      forAll(anwFGen) { anwOF: Future[Anwender] =>
-        /*anwOF map { anwO =>
-          anwO flatMap { anw =>
-            anw.anwender.map { anwE =>
-              anwE.id
-              // wie kann ich bei verschachtelten Monaden den Wertnach oben transportieren
-              // zB. hier F[O[F[O[Int]]]] und gebraucht wird F[Int] oder F[O[Int]]
-            }
-          } should not equal None
-        }*/ true
+      forAll(anwFGen) { anwF: Future[Anwender] =>
+        anwF flatMap { anw =>
+          anw.anwender.map { anwE =>
+            anwE.id.value should /*not*/ be(12345L)
+          }
+
+        }
       }
     }
     /*
@@ -82,16 +90,21 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
       for {
         profil <- anwender.profilAnzeigen()
       } yield (profil should equal((expectedAnwender, Some(expectedAdresse))))
-    }
+    }*/
     "permit full-on-changing as long as nutzerName and nutzerEmail stay unique" in {
-      val updateAnwender = anwenderize(12344321)
-      for {
-        updated <- anwender.anwenderInformationenAustauschen(updateAnwender, None)
-        throwAway <- Future.successful(if (!updated) Failed)
-        profil <- anwender.profilAnzeigen()
-      } yield (profil should equal((updateAnwender.copy(id = expectedAnwender.id, password = expectedAnwender.password), None)))
+      forAll(anwFGen, anwEGen, minSuccessful(1)) { (anwenderF, anwE) =>
+        Await.result(for {
+          anwender <- anwenderF
+          (before, _) <- anwender.profilAnzeigen()
+          updated <- anwender.anwenderInformationenAustauschen(anwE, None)
+          throwAway <- Future.successful(if (!updated) Failed)
+          profil <- anwender.profilAnzeigen()
+        } yield //(before should be(AnwenderEntity("afsd", "hgdfhdfh", "ssafsdfdfgdfd"))) //succeed
+        // (1 should be(234))
+        (profil._1 should equal(anwE.copy(id = before.id, password = before.password))), 10 second)
+      }
     }
-    "forbid full-on-changing if nutzerName and nutzerEmail are not unique" in {
+    /*"forbid full-on-changing if nutzerName and nutzerEmail are not unique" in {
       val updateAnwender = anwenderize(12344321)
       for {
         updated <- anwender.anwenderInformationenAustauschen(updateAnwender, None)
