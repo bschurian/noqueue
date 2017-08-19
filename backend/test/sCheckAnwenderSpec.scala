@@ -101,7 +101,7 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
           profil <- anwender.profilAnzeigen()
         } yield //(before should be(AnwenderEntity("afsd", "hgdfhdfh", "ssafsdfdfgdfd"))) //succeed
         // (1 should be(234))
-        (profil._1 should equal(anwE.copy(id = before.id, password = before.password))), 10 second)
+        (profil._1 should equal(anwE.copy(id = before.id, password = before.password))), 10 seconds)
       }
     }
     /*"forbid full-on-changing if nutzerName and nutzerEmail are not unique" in {
