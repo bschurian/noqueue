@@ -39,7 +39,7 @@ class Anwender(val anwenderAction: DBIO[(AnwenderEntity, Option[AdresseEntity])]
     for {
       anw <- anwender
       adr <- if (!adrO.isEmpty) db.run(dal.findOrInsert(adrO.get)).map(_.id) else Future.successful(None)
-      updated <- db.run(dal.update((anw.id), anwenderEntity.copy(adresseId = adr)))
+      updated <- db.run(dal.update(anw.id, anwenderEntity.copy(adresseId = adr)))
     } yield updated == 1
   }
 

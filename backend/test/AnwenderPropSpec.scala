@@ -2,18 +2,25 @@ import java.io.File
 
 import models.{ Anwender, DB, UnregistrierterAnwender }
 import models.db.AnwenderEntity
-import org.scalacheck.Gen
-import org.scalacheck.Prop.forAll
+import org.h2.jdbc.JdbcSQLException
 import org.scalatest.{ FutureOutcome, Matchers, Outcome, PropSpec }
+import org.scalatest._
+import org.scalacheck.{ Gen, Prop }
+import org.scalacheck.Gen.alphaStr
+import org.scalacheck.Prop.{ collect, forAll }
+import org.scalacheck.Prop.AnyOperators
+import org.scalacheck.Arbitrary.arbitrary
+import org.scalacheck.util.Pretty
 import play.api.Mode
 import play.api.inject.guice.GuiceApplicationBuilder
 
 import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-import org.scalatest._
-import org.scalacheck.Prop.AnyOperators
 import prop._
+import utils.{ EmailAlreadyInUseException, NutzerNameAlreadyInUseException }
+
+import scala.util.Try
 
 /**
  * Created by anwender on 18.08.2017.
@@ -40,37 +47,48 @@ class AnwenderPropSpec extends PropSpec with Matchers with Checkers {
     .build
   val db: DB = application.injector.instanceOf[DB]
 
-  def anwEntityToModel(anwE: AnwenderEntity): Future[Anwender] = {
-    for {
-      regAnwE <- (new UnregistrierterAnwender(db)).registrieren(anwE)
-    } yield new Anwender(db.dal.getAnwenderWithAdress(regAnwE.id), db)
+  val myPreferredStringGen: Gen[String] = arbitrary[String]
+
+  def anwEntityToModel(anwE: AnwenderEntity): Anwender = {
+    try {
+      Await.result(
+        for {
+          regAnwE <- (new UnregistrierterAnwender(db)).registrieren(anwE)
+        } yield new Anwender(db.dal.getAnwenderWithAdress(regAnwE.id), db), 20 seconds
+      )
+    } catch {
+      //in the case of a field that is not unique, replace the field and try again
+      case eAExc: EmailAlreadyInUseException => {
+        print("asdfasd" + anwE.toString)
+        anwEntityToModel(anwE.copy(nutzerEmail = myPreferredStringGen.sample.get))
+      }
+      case nNAExc: NutzerNameAlreadyInUseException => {
+        print("asdfasd" + anwE.toString)
+        anwEntityToModel(anwE.copy(nutzerName = myPreferredStringGen.sample.get))
+      }
+    }
   }
 
-  implicit val anwEGen = for {
-    nE <- Gen.alphaStr
-    pW <- Gen.alphaStr
-    nN <- Gen.alphaStr
+  val anwEGen = for {
+    nE <- myPreferredStringGen
+    pW <- myPreferredStringGen
+    nN <- myPreferredStringGen
   } yield new AnwenderEntity(nE, pW, nN)
 
-  implicit val anwFGen: Gen[Future[Anwender]] = {
+  val anwGen: Gen[Anwender] = {
     for {
       anwE <- anwEGen
-      anwender <- anwEntityToModel(anwE)
-    } yield anwender
+    } yield anwEntityToModel(anwE)
   }
 
-  property("obligatorily false") {
-    false
+  ignore("obligatorily false Prop") { //sanity check 1
+    check(
+      forAll { bool: Boolean =>
+        false
+      }
+    )
   }
-  property("obligatorily assert false") {
-    assert(false)
-  }
-  property("obligatorily false Prop") {
-    check(forAll { bool: Boolean =>
-      bool
-    })
-  }
-  property("obligatorily true Prop") {
+  ignore("obligatorily true Prop") {
     check(
       org.scalacheck.Prop.passed
     /*forAll { bool: Boolean =>
@@ -79,23 +97,49 @@ class AnwenderPropSpec extends PropSpec with Matchers with Checkers {
     )
   }
 
-  /*property("unpersisted Anwenders") {
-    forAll(anwEGen) { (anwE: AnwenderEntity) =>
-      anwE.id == 0L && false
-    }
-  }
-
-  property("Anwenders that were persisted schould have IDless") {
+  ignore("unpersisted Anwenders") {
     check(
-      forAll(anwFGen) { anwF: Future[Anwender] =>
-        Await.result(anwF flatMap { anw =>
-          anw.anwender.map { anwE =>
-            anwE.id.value == 123456L
-          }
-        }, 5 seconds)
+      forAll(anwEGen) { (anwE: AnwenderEntity) =>
+        anwE.id.value == 0L
       }
     )
-  }*/
+  }
+
+  ignore("this fails") {
+    check(
+      forAll { xF: Int =>
+        Await.result(
+          Future(xF) map { x =>
+            -1000 > x && x > 400
+          }, 10 seconds
+        )
+      }
+    )
+  }
+
+  ignore("this also fails but produces ~160 Lines of Stacktrace and I don't know why") {
+    check(
+      forAll { xF: Future[Int] =>
+        Await.result(
+          xF map { x =>
+            -1000 > x && x > 400
+          }, 10 seconds
+        )
+      }
+    )
+  }
+
+  ignore("Anwenders that were persisted schould have IDs") {
+    check(
+      forAll(anwGen) { anw: Anwender =>
+        Await.result(
+          anw.anwender.map { anwE =>
+            anwE.id.value > 0L
+          }, 50 seconds
+        )
+      }
+    )
+  }
 
   /*
     "return his profile" in {
@@ -104,24 +148,23 @@ class AnwenderPropSpec extends PropSpec with Matchers with Checkers {
       } yield (profil should equal((expectedAnwender, Some(expectedAdresse))))
     }*/
 
-  /*property("Anwender permit full-on-changing as long as nutzerName and nutzerEmail stay unique") {
-    forAll(anwFGen, anwEGen) { (anwenderF, anwE) =>
-      Await.result(for {
-        anwender <- anwenderF
-        (before, _) <- anwender.profilAnzeigen()
-        updated <- anwender.anwenderInformationenAustauschen(anwE, None)
-        throwAway <- Future.successful(if (!updated) false)
-        profil <- anwender.profilAnzeigen()
-      } yield //(before should be(AnwenderEntity("afsd", "hgdfhdfh", "ssafsdfdfgdfd"))) //succeed
-      // (1 should be(234))
-      (profil._1 == (anwE.copy(id = before.id, password = before.password + "asdf"))), 10 seconds)
-    }
-  }*/
-
-  /*property("reverse cancels itself out") {
-    forAll { xs: List[Int] =>
-      xs.reverse.reverse == xs
-    }
-  }*/
+  property("Anwender permit full-on-changing as long as nutzerName and/or nutzerEmail stay unique") {
+    check(
+      forAll(anwGen, anwEGen) { (anwender, anwE) =>
+        try {
+          Await.result(
+            for {
+              (before, _) <- anwender.profilAnzeigen()
+              updated <- anwender.anwenderInformationenAustauschen(anwE, None)
+              (after, _) <- anwender.profilAnzeigen()
+            } yield after == (anwE.copy(id = before.id, password = before.password)), 100 seconds
+          )
+        } catch {
+          //in case Update doesn't go through
+          case jdbc: JdbcSQLException => true
+        }
+      }
+    )
+  }
 
 }

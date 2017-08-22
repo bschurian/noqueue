@@ -11,3 +11,5 @@ backend/logs/
 
 backend/test/sCheckTest.scala
 backend/*/*TryingOut*.scala
+
+*.log

@@ -77,12 +77,11 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
 
     "that were persisted schould have IDless" - {
       forAll(anwFGen) { anwF: Future[Anwender] =>
-        anwF flatMap { anw =>
+        Await.result(anwF flatMap { anw =>
           anw.anwender.map { anwE =>
             anwE.id.value should /*not*/ be(12345L)
           }
-
-        }
+        }, 10 seconds)
       }
     }
     /*
@@ -91,17 +90,16 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
         profil <- anwender.profilAnzeigen()
       } yield (profil should equal((expectedAnwender, Some(expectedAdresse))))
     }*/
-    "permit full-on-changing as long as nutzerName and nutzerEmail stay unique" in {
-      forAll(anwFGen, anwEGen, minSuccessful(1)) { (anwenderF, anwE) =>
-        Await.result(for {
-          anwender <- anwenderF
-          (before, _) <- anwender.profilAnzeigen()
-          updated <- anwender.anwenderInformationenAustauschen(anwE, None)
-          throwAway <- Future.successful(if (!updated) Failed)
-          profil <- anwender.profilAnzeigen()
-        } yield //(before should be(AnwenderEntity("afsd", "hgdfhdfh", "ssafsdfdfgdfd"))) //succeed
-        // (1 should be(234))
-        (profil._1 should equal(anwE.copy(id = before.id, password = before.password))), 10 seconds)
+    "permit full-on-changing change nutzerName and email if the change goes through" in {
+      forAll(anwFGen, anwEGen) { (anwenderF, anwE) =>
+        Await.result(
+          for {
+            anwender <- anwenderF
+            (before, _) <- anwender.profilAnzeigen()
+            updated <- anwender.anwenderInformationenAustauschen(anwE, None)
+            (after, _) <- anwender.profilAnzeigen()
+          } yield assert(!updated || (after == (anwE.copy(id = before.id, password = before.password)))), 10 seconds
+        )
       }
     }
     /*"forbid full-on-changing if nutzerName and nutzerEmail are not unique" in {
