@@ -1,6 +1,11 @@
+case class Person(name: String, age: Int)
+val persons: List[Person] =  List.apply(Person.apply("Alex", 30), Person("Clara", 20), Person("Bert", 25))
+def compareAge(p1: Person, p2: Person): Boolean = p1.age < p2.age
+def compareName(p1: Person, p2: Person): Boolean = p1.name < p2.name
+val personsByAge =persons.sortWith(compareAge)
+val personsByName =persons.sortWith(compareName)
 
-
-1 + 2
+/*1 + 2
 def funct():Boolean = {
   try{
     throw new IndexOutOfBoundsException
@@ -9,7 +14,7 @@ def funct():Boolean = {
     case exc: IndexOutOfBoundsException => true
   }
 }
-val x = funct()
+val x = funct()*/
 
 
 /*import models.DB

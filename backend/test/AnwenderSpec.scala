@@ -11,7 +11,7 @@ import org.mindrot.jbcrypt.BCrypt
 import scala.concurrent.{ Await, Future }
 import play.api.{ Environment, Mode }
 import play.api.inject.guice.GuiceApplicationBuilder
-import utils.{ OneLeiterRequiredException, UnauthorizedException }
+import utils.{ EmailAlreadyInUseException, OneLeiterRequiredException, UnauthorizedException }
 
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Future }
@@ -91,7 +91,7 @@ class AnwenderSpec extends AsyncWordSpec {
         profil <- anwender.profilAnzeigen()
       } yield (profil should equal((updateAnwender.copy(id = expectedAnwender.id, password = expectedAnwender.password), None)))
       val anw2 = new Anwender(db.dal.getAnwenderWithAdress(PK[AnwenderEntity](1L)), db)
-      recoverToSucceededIf[JdbcSQLException](
+      recoverToSucceededIf[EmailAlreadyInUseException](
         anw2.anwenderInformationenAustauschen(updateAnwender, None) map {
           updateHappened => assert(!updateHappened)
         }

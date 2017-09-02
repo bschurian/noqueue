@@ -57,12 +57,12 @@ class optionlessIDv2Test extends AsyncFreeSpec with Matchers with GeneratorDrive
       dbDb.run(dal.insert(User("Bdam", "Bdam@example.com")))
         .map(_ shouldEqual (2L))
     }
-    "unrelated Test of scala.concurrent.Future" - {
+    /*"unrelated Test of scala.concurrent.Future" - {
       "should Fail" in {
         Future.successful {
           fail
         }
       }
-    }
+    }*/
   }
 }

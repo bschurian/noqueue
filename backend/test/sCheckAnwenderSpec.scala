@@ -1,20 +1,24 @@
 import java.io.File
+import java.sql.SQLException
 
 import models.{ Anwender, DB, UnregistrierterAnwender }
-import models.db.{ AnwenderEntity, PK }
+import models.db.AnwenderEntity
 import org.h2.jdbc.JdbcSQLException
 import org.scalacheck.Gen
+import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.Matchers._
-import org.scalatest.prop.{ GeneratorDrivenPropertyChecks, Whenever }
+import org.scalatest.prop.{ GeneratorDrivenPropertyChecks }
 import org.scalatest._
 import play.api.Mode
 import play.api.inject.guice.GuiceApplicationBuilder
+import utils.{ EmailAlreadyInUseException, NutzerNameAlreadyInUseException }
 
-import scala.concurrent.{ Await, Future }
+import scala.concurrent.{ Await }
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
+ * ScalaCheck-like properties of the Anwender-class using ScalaTest Features like assertThrows and Matchers
  * Created by anwender on 19.07.2017.
  */
 class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrivenPropertyChecks {
@@ -39,49 +43,60 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
     .build
   val db: DB = application.injector.instanceOf[DB]
 
-  def anwEntityToModel(anwE: AnwenderEntity): Future[Anwender] = {
-    for {
-      regAnwE <- (new UnregistrierterAnwender(db)).registrieren(anwE)
-    } yield new Anwender(db.dal.getAnwenderWithAdress(regAnwE.id), db)
+  def anwEntityToModel(anwE: AnwenderEntity): Anwender = {
+    try {
+      Await.result(
+        for {
+          regAnwE <- new UnregistrierterAnwender(db).registrieren(anwE)
+        } yield new Anwender(db.dal.getAnwenderWithAdress(regAnwE.id), db), 20 seconds
+      )
+    } catch {
+      //in the case of a field that is not unique, replace the field and try again
+      case eAExc: EmailAlreadyInUseException =>
+        anwEntityToModel(anwE.copy(nutzerEmail = myPreferredStringGen.sample.get))
+
+      case nNAExc: NutzerNameAlreadyInUseException =>
+        anwEntityToModel(anwE.copy(nutzerName = myPreferredStringGen.sample.get))
+
+    }
   }
 
-  implicit val anwEGen = for {
-    nE <- Gen.alphaStr
-    pW <- Gen.alphaStr
-    nN <- Gen.alphaStr
-  } yield new AnwenderEntity(nE, pW, nN)
+  val myPreferredStringGen = arbitrary[String]
 
-  implicit val anwFGen: Gen[Future[Anwender]] = {
+  val anwEGen = for {
+    nE <- myPreferredStringGen
+    pW <- myPreferredStringGen
+    nN <- myPreferredStringGen
+  } yield AnwenderEntity(nE, pW, nN)
+
+  val anwENotInUseGen = for {
+    id <- Gen.posNum[Int]
+    nEmail <- myPreferredStringGen.retryUntil(s => !Await.result(db.db.run(db.dal.existsEmail(s)), 100 seconds), 20)
+    pW <- myPreferredStringGen
+    nName <- myPreferredStringGen.retryUntil(s => !Await.result(db.db.run(db.dal.existsName(s)), 100 seconds), 20)
+  } yield AnwenderEntity(nEmail, pW, nName)
+
+  val anwGen: Gen[Anwender] = {
     for {
       anwE <- anwEGen
-      anwender <- anwEntityToModel(anwE)
-    } yield anwender
-  }
-
-  //less testing
-  val lessTests = Seq(PropertyCheckConfig(minSuccessful = 10))
-
-  "obligatory" - {
-    "failure" in {
-      fail
-    }
+    } yield anwEntityToModel(anwE)
   }
 
   "Anwenders" - {
 
-    "that were not persisted schould be IDless" - {
-      forAll(anwEGen) { (anwE: AnwenderEntity) =>
-        anwE.id == None
+    "that were not persisted schould be IDless" in {
+      forAll(anwEGen) { anwE: AnwenderEntity =>
+        anwE.id.value shouldEqual 0L
       }
     }
 
-    "that were persisted schould have IDless" - {
-      forAll(anwFGen) { anwF: Future[Anwender] =>
-        Await.result(anwF flatMap { anw =>
+    "that were persisted schould have IDs higher than the standard ID" in {
+      forAll(anwGen) { anw: Anwender =>
+        Await.result(
           anw.anwender.map { anwE =>
-            anwE.id.value should /*not*/ be(12345L)
-          }
-        }, 10 seconds)
+            assert(anwE.id.value > 0L)
+          }, 10 seconds
+        )
       }
     }
     /*
@@ -91,53 +106,44 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
       } yield (profil should equal((expectedAnwender, Some(expectedAdresse))))
     }*/
     "permit full-on-changing change nutzerName and email if the change goes through" in {
-      forAll(anwFGen, anwEGen) { (anwenderF, anwE) =>
+      forAll(anwENotInUseGen, anwGen) { (anwE, anwender) =>
         Await.result(
           for {
-            anwender <- anwenderF
             (before, _) <- anwender.profilAnzeigen()
             updated <- anwender.anwenderInformationenAustauschen(anwE, None)
             (after, _) <- anwender.profilAnzeigen()
-          } yield assert(!updated || (after == (anwE.copy(id = before.id, password = before.password)))), 10 seconds
+          } yield assert(!updated || (after == anwE.copy(id = before.id, password = before.password))), 10 seconds
         )
       }
     }
-    /*"forbid full-on-changing if nutzerName and nutzerEmail are not unique" in {
-      val updateAnwender = anwenderize(12344321)
-      for {
-        updated <- anwender.anwenderInformationenAustauschen(updateAnwender, None)
-        throwAway <- Future.successful(if (!updated) Failed)
-        profil <- anwender.profilAnzeigen()
-      } yield (profil should equal((updateAnwender.copy(id = expectedAnwender.id, password = expectedAnwender.password), None)))
-      val anw2 = new Anwender(db.dal.getAnwenderWithAdress(PK[AnwenderEntity](1L)), db)
-      recoverToSucceededIf[JdbcSQLException](
-        anw2.anwenderInformationenAustauschen(updateAnwender, None) map {
-          updateHappened => assert(!updateHappened)
+    "forbid full-on-changing if nutzerEmail is not unique" in {
+      forAll(anwGen, anwGen, anwEGen) { (anwender1, anwender2, anwE) =>
+        assertThrows[EmailAlreadyInUseException] {
+          Await.result(
+            for {
+              _ <- anwender1.anwenderInformationenAustauschen(anwE, None)
+              _ <- anwender2.anwenderInformationenAustauschen(anwE, None)
+            } yield false, 20 seconds
+          )
         }
-      )
+      }
     }
-    "permit partial changing as long as nutzerName and nutzerEmail stay unique" in {
-      val updateAnwender = anwenderize(12344321)
-      for {
-        updated <- anwender.anwenderInformationenVeraendern(Some(updateAnwender.nutzerName), Some(updateAnwender.nutzerEmail), Some(None))
-        throwAway <- Future.successful(if (!updated) Failed)
-        profil <- anwender.profilAnzeigen()
-      } yield (profil should equal((updateAnwender.copy(id = expectedAnwender.id, password = expectedAnwender.password), None)))
-    }
-    "forbid partial changing if nutzerName and nutzerEmail are not unique" in {
-      val updateAnwender = anwenderize(12344321)
-      for {
-        updated <- anwender.anwenderInformationenVeraendern(Some(updateAnwender.nutzerName), Some(updateAnwender.nutzerEmail), Some(None))
-        throwAway <- Future.successful(if (!updated) Failed)
-        profil <- anwender.profilAnzeigen()
-      } yield (profil should equal((updateAnwender.copy(id = expectedAnwender.id, password = expectedAnwender.password), None)))
-      val anw2 = new Anwender(db.dal.getAnwenderWithAdress(PK[AnwenderEntity](1L)), db)
-      recoverToSucceededIf[JdbcSQLException](
-        anw2.anwenderInformationenVeraendern(Some(updateAnwender.nutzerName), Some(updateAnwender.nutzerEmail), Some(None)) map {
-          updateHappened => assert(!updateHappened)
+
+    "forbid full-on-changing if nutzerName is not unique" in {
+      forAll(anwENotInUseGen, anwGen, anwGen) { (anwE1, anwender1, anwender2) =>
+        val anwE2 = anwE1.copy(nutzerEmail = anwE1.nutzerEmail + "SomethingExtra")
+        assertThrows[NutzerNameAlreadyInUseException] {
+          Await.result(
+            for {
+              _ <- anwender1.anwenderInformationenAustauschen(anwE1, None)
+              _ <- anwender2.anwenderInformationenAustauschen(anwE2, None)
+            } yield false, 20 seconds
+          )
         }
-      )
+      }
     }
+
+    /*
     "be able to search for DiensleistungsTyps" in {
       anwender.dienstleistungsTypSuchen("Haare", 0, 10) map {
         seq =>

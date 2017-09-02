@@ -9,10 +9,11 @@ import models.db._
 import org.mindrot.jbcrypt.BCrypt
 import play.api.inject.ApplicationLifecycle
 import slick.dbio.{ DBIO, DBIOAction }
-import utils.{ InvalidWspSubscribtionException, UnauthorizedException, WspDoesNotExistException }
+import utils._
 
 import scala.concurrent.{ Await, Future }
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
+
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
@@ -36,11 +37,21 @@ class Anwender(val anwenderAction: DBIO[(AnwenderEntity, Option[AdresseEntity])]
   def profilAnzeigen(): Future[(AnwenderEntity, Option[AdresseEntity])] = db.run(anwenderAction)
 
   def anwenderInformationenAustauschen(anwenderEntity: AnwenderEntity, adrO: Option[AdresseEntity]): Future[Boolean] = {
-    for {
+    (for {
       anw <- anwender
-      adr <- if (!adrO.isEmpty) db.run(dal.findOrInsert(adrO.get)).map(_.id) else Future.successful(None)
+      adr <- if (adrO.isDefined) db.run(dal.findOrInsert(adrO.get)).map(_.id) else Future.successful(None)
       updated <- db.run(dal.update(anw.id, anwenderEntity.copy(adresseId = adr)))
-    } yield updated == 1
+    } yield updated == 1) recover {
+      case sqle: SQLException =>
+        if (sqle.getMessage.contains("emailUnique")) throw new EmailAlreadyInUseException
+        if (sqle.getMessage.contains("nameUnique")) throw new NutzerNameAlreadyInUseException
+        //we dont cover this since we cant get 100% branch coverage here
+        // $COVERAGE-OFF$
+        throw sqle;
+      // $COVERAGE-ON$
+
+    }
+
   }
 
   def anwenderInformationenVeraendern(nutzerName: Option[String], nutzerEmail: Option[String], adresse: Option[Option[AdresseEntity]]): Future[Boolean] = {
@@ -49,15 +60,19 @@ class Anwender(val anwenderAction: DBIO[(AnwenderEntity, Option[AdresseEntity])]
       //contains the id of this Anwender and his persisted AdresseEntity
       seq <- Future.sequence(Seq(anwender, if (!adresse.isEmpty && !adresse.get.isEmpty) {
         db.run(dal.findOrInsert(adresse.get.get))
-      } else { //case adresse
+      } else {
+        //case adresse
         Future.successful(AdresseEntity) //you can ignore this, because we won't use it later
       }))
-      adrIdOptOpt <- if (adresse.isEmpty) { //case do nothing (on no adress field provided)
+      adrIdOptOpt <- if (adresse.isEmpty) {
+        //case do nothing (on no adress field provided)
         Future.successful(None)
       } else {
-        if (adresse.get.isEmpty) { //case delete adresse (on adress field provided but empty)
+        if (adresse.get.isEmpty) {
+          //case delete adresse (on adress field provided but empty)
           Future.successful(Some(None))
-        } else { //case adresse
+        } else {
+          //case adresse
           Future.successful(Some(Some(seq(1).asInstanceOf[AdresseEntity].id.get))) //asInstance is typecasting
         }
       }
@@ -167,6 +182,7 @@ class Anwender(val anwenderAction: DBIO[(AnwenderEntity, Option[AdresseEntity])]
     } yield (wsp.get._1, wsp.get._3, wsp.get._4, addr.get, wsp.get._6, wsp.get._7, wsp.get._8, res)
     // wspId,  mitarbeiterName, BetriebName, Adresse, dlId, dldauer, dlname, schaetzZeitpunkt
   }
+
   //[
   //  ...
   // (mitarbeiterID,  mitarbeiterName, schaetzZeitpunkt)

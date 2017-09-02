@@ -40,6 +40,12 @@ trait AnwenderComponent {
 
   private val anwenderAutoInc = anwenders returning anwenders.map(_.id)
 
+  // $COVERAGE-OFF$
+  // for better tests
+  def existsName(nutzerName: String) = anwenders.filter(_.nutzerName === nutzerName).exists.result
+  def existsEmail(nutzerEmail: String) = anwenders.filter(_.nutzerEmail === nutzerEmail).exists.result
+  // $COVERAGE-ON$
+
   def insert(anwender: AnwenderEntity): DBIO[AnwenderEntity] = {
     for {
       id <- if (anwender.adresseId.isEmpty) {

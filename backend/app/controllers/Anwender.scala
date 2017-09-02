@@ -18,8 +18,9 @@ import play.api.inject.ApplicationLifecycle
 import play.api.libs.functional.syntax._
 import play.api.libs.json.Reads._
 import play.api.libs.json._
-
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import utils.{ EmailAlreadyInUseException, NutzerNameAlreadyInUseException }
+
 import scala.concurrent.Future
 
 /**
@@ -62,17 +63,22 @@ class Anwender @Inject() (val dbD: DB, val as: AdressService, val messagesApi: M
   def profilAustauschen = SecuredApiActionWithBody { implicit request =>
     readFromRequest[(AnwenderEntity, Option[AdresseEntity])] {
       case (anw: AnwenderEntity, adrO: Option[AdresseEntity]) => {
-        (for {
-          geo: GeoCoords <- if (adrO.isEmpty) Future.successful[GeoCoords](GeoCoords(0.00, 0.00)) else as.getCoordsOfAdress(adrO.get)
-          updateSuccessfull <- request.anwender.anwenderInformationenAustauschen(anw, addCoordinatesIfPresent(adrO, geo))
-        } yield (updateSuccessfull)) flatMap {
-          bool =>
-            if (bool) {
-              accepted("Your Input was Accepted")
-            } else {
-              //@todo B Schurian check if necessary ?! should break before since user is not found
-              ApiError.errorInternal("Unable to save provided Data...")
-            }
+        try {
+          (for {
+            geo: GeoCoords <- if (adrO.isEmpty) Future.successful[GeoCoords](GeoCoords(0.00, 0.00)) else as.getCoordsOfAdress(adrO.get)
+            updateSuccessfull <- request.anwender.anwenderInformationenAustauschen(anw, addCoordinatesIfPresent(adrO, geo))
+          } yield (updateSuccessfull)) flatMap {
+            bool =>
+              if (bool) {
+                accepted("Your Input was Accepted")
+              } else {
+                //@todo B Schurian check if necessary ?! should break before since user is not found
+                ApiError.errorInternal("Unable to save provided Data...")
+              }
+          }
+        } catch {
+          case sqle: EmailAlreadyInUseException => ApiError.errorInternal("e-mail is not unique")
+          case sqle: NutzerNameAlreadyInUseException => ApiError.errorInternal("name is not unique")
         }
       }
     }
