@@ -160,9 +160,9 @@ class Anwender(val anwenderAction: DBIO[(AnwenderEntity, Option[AdresseEntity])]
       anw <- anwender
       //wsp of anwender
       wsp <- db.run(dal.getWarteschlangenPlatzOfAnwender(anw.id))
-      addr <- db.run(dal.getAdresseById(wsp.map(_._5).get))
       //previous wsps
       prev <- if (wsp.isEmpty) throw new WspDoesNotExistException else db.run(dal.getPrevWarteschlangenplaetze(wsp.get._2, wsp.get._1))
+      addr <- db.run(dal.getAdresseById(wsp.map(_._5).get))
       res <- {
 
         //split wsps that already has begun and wsps that did not

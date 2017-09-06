@@ -1,9 +1,23 @@
 case class Person(name: String, age: Int)
-val persons: List[Person] =  List.apply(Person.apply("Alex", 30), Person("Clara", 20), Person("Bert", 25))
+val persons: List[Person] =  List.apply(Person.apply("Alex", 30), Person("Bert", 20), Person("Clara", 25))
 def compareAge(p1: Person, p2: Person): Boolean = p1.age < p2.age
-def compareName(p1: Person, p2: Person): Boolean = p1.name < p2.name
-val personsByAge =persons.sortWith(compareAge)
-val personsByName =persons.sortWith(compareName)
+def compareName(p1: Person, p2: Person): Boolean = p1.name > p2.name
+val personsByAge = persons.sortWith(compareAge) //List(Person(Bert,20), Person(Clara,25), Person(Alex,30))
+val personsByName = persons.sortWith(compareName) //List(Person(Clara,25), Person(Bert,20), Person(Alex,30))
+
+val person1 = Person.apply("Alex", 30)
+val nameP1 = person1.name// "Alex"
+val person2 = person1.copy(age = 34)
+val nameP2 = person2.name// "Alex"
+val ageP2 = person2.age // 34
+val eqPerson = person1.equals(person2) // false
+
+import org.scalacheck._
+
+Gen.choose(1,10).map(_*100).sample
+
+(List(4,5,6)).apply(2)
+
 
 /*1 + 2
 def funct():Boolean = {

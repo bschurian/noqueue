@@ -2,18 +2,18 @@ import java.io.File
 import java.sql.SQLException
 
 import models.{ Anwender, DB, UnregistrierterAnwender }
-import models.db.AnwenderEntity
+import models.db.{ AnwenderEntity, PK }
 import org.h2.jdbc.JdbcSQLException
 import org.scalacheck.Gen
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.Matchers._
-import org.scalatest.prop.{ GeneratorDrivenPropertyChecks }
+import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import org.scalatest._
 import play.api.Mode
 import play.api.inject.guice.GuiceApplicationBuilder
-import utils.{ EmailAlreadyInUseException, NutzerNameAlreadyInUseException }
+import utils.{ EmailAlreadyInUseException, NutzerNameAlreadyInUseException, WspDoesNotExistException }
 
-import scala.concurrent.{ Await }
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -70,7 +70,6 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
   } yield AnwenderEntity(nE, pW, nN)
 
   val anwENotInUseGen = for {
-    id <- Gen.posNum[Int]
     nEmail <- myPreferredStringGen.retryUntil(s => !Await.result(db.db.run(db.dal.existsEmail(s)), 100 seconds), 20)
     pW <- myPreferredStringGen
     nName <- myPreferredStringGen.retryUntil(s => !Await.result(db.db.run(db.dal.existsName(s)), 100 seconds), 20)
@@ -116,13 +115,29 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
         )
       }
     }
-    "forbid full-on-changing if nutzerEmail is not unique" in {
-      forAll(anwGen, anwGen, anwEGen) { (anwender1, anwender2, anwE) =>
-        assertThrows[EmailAlreadyInUseException] {
+    def somethingNotUniqueProperty(makeOtherUniquesUnique: (AnwenderEntity) => AnwenderEntity, myAssertT: (=> Any) => Assertion): Assertion = {
+      forAll(anwENotInUseGen, anwGen, anwGen) { (anwE1, anwender1, anwender2) =>
+        //val anwE2 = makeOtherUniquesUnique(anwE1)
+        myAssertT { () =>
+          val anwE2 = makeOtherUniquesUnique(anwE1)
           Await.result(
             for {
-              _ <- anwender1.anwenderInformationenAustauschen(anwE, None)
-              _ <- anwender2.anwenderInformationenAustauschen(anwE, None)
+              _ <- anwender1.anwenderInformationenAustauschen(anwE1, None)
+              _ <- anwender2.anwenderInformationenAustauschen(anwE2, None)
+            } yield false, 20 seconds
+          )
+        }
+      }
+    }
+
+    "forbid full-on-changing if nutzerEmail is not unique" in {
+      forAll(anwENotInUseGen, anwGen, anwGen) { (anwE1, anwender1, anwender2) =>
+        assertThrows[EmailAlreadyInUseException] {
+          val anwE2 = anwE1.copy(nutzerName = " pre" + anwE1.nutzerName + "SomethingExtra")
+          Await.result(
+            for {
+              _ <- anwender1.anwenderInformationenAustauschen(anwE1, None)
+              _ <- anwender2.anwenderInformationenAustauschen(anwE2, None)
             } yield false, 20 seconds
           )
         }
@@ -131,8 +146,8 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
 
     "forbid full-on-changing if nutzerName is not unique" in {
       forAll(anwENotInUseGen, anwGen, anwGen) { (anwE1, anwender1, anwender2) =>
-        val anwE2 = anwE1.copy(nutzerEmail = anwE1.nutzerEmail + "SomethingExtra")
         assertThrows[NutzerNameAlreadyInUseException] {
+          val anwE2 = anwE1.copy(nutzerEmail = anwE1.nutzerEmail + "SomethingExtra")
           Await.result(
             for {
               _ <- anwender1.anwenderInformationenAustauschen(anwE1, None)
@@ -158,6 +173,7 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
       val anw = anwenderize("newAnwenderComingIn")
       val unregistrierterAnwender = new UnregistrierterAnwender(db)
       for {
+
         newAnwenderE <- unregistrierterAnwender.registrieren(anw)
         newAnwender <- Future.successful(new Anwender(db.dal.getAnwenderWithAdress(newAnwenderE.id.get), db))
         pwChanged <- newAnwender.passwordVeraendern(anw.password, pw)
@@ -198,12 +214,29 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
         }
       }
     }
-    "return someone else's profile" in {
-      for {
-        profil <- anwender.anwenderAnzeigen(PK[AnwenderEntity](1L))
-      } yield (profil should equal(AnwenderEntity("davidkaatz5@gmx.de", "$2a$10$LdM4yf7zgmjS8Pb5rGyeeeiUXFFc/wEJfeZloUPbjo8MD/CLA0B0S", "dkaatz5", None, Some(PK[AnwenderEntity](1)))))
+    */ "return someone else's profile" in {
+      forAll(anwGen) { anwender =>
+        Await.result(for {
+          profil <- anwender.anwenderAnzeigen(PK[AnwenderEntity](1L))
+        } yield (profil should equal(AnwenderEntity("davidkaatz5@gmx.de", "$2a$10$LdM4yf7zgmjS8Pb5rGyeeeiUXFFc/wEJfeZloUPbjo8MD/CLA0B0S", "dkaatz5", None, PK[AnwenderEntity](1)))), 10 seconds)
+      }
     }
-    "be able to show a WarteschlangePlatz" in {
+
+    "have no WarteschlangePlatz (an empty queue)" in {
+      forAll(anwGen) { anwender =>
+        assertThrows[WspDoesNotExistException](
+          try {
+            Await.result(anwender.wspAnzeigen(), 10 seconds)
+          } catch {
+            case (e: java.util.NoSuchElementException) =>
+              e.getStackTrace.map(println(_))
+              throw e
+          }
+        )
+      }
+    }
+    /*
+        "be able to show a WarteschlangePlatz" in {
       for {
         wsp <- anwender.wspAnzeigen()
       } yield (wsp._1 shouldEqual (expectedWsP.id.get))
@@ -231,7 +264,12 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
         persistedBetrieb <- anwender.betriebAnzeigen(betrieb.id.get) map (_._1)
       } yield (persistedBetrieb shouldEqual (betriebE.copy(id = persistedBetrieb.id)))
     }
-    "be able to book WsPs" in {
+    */
+
+    /*"be able to book WsPs" in {
+      forAll(anwGen){anwender
+
+      }
       val pw = "1234"
       val anw = anwenderize("newAnwenderComingIn")
       val unregistrierterAnwender = new UnregistrierterAnwender(db)
@@ -240,7 +278,9 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
         newAnwender = new Anwender(db.dal.getAnwenderWithAdress(newAnwenderE.id.get), db)
         wsp <- newAnwender.wsFuerBestimmtenMitarbeiterBeitreten(expectedWsP.dienstLeistungId.value, expectedWsP.mitarbeiterId.value)
       } yield (wsp should equal(WarteschlangenPlatzEntity(None, newAnwenderE.id.get, expectedWsP.mitarbeiterId, expectedWsP.dienstLeistungId, None, None).copy(id = wsp.id)))
-    }
+    }*/
+
+    /*
     "be able to get next time of a Betrieb" in {
       /*INSERT INTO "MITARBEITER" ("ANWESEND", "BETR_ID", "ANW_ID", "MIT_ID") VALUES (true, 8, 3, 3);
   INSERT INTO "MITARBEITER" ("ANWESEND", "BETR_ID", "ANW_ID", "MIT_ID") VALUES (true, 8, 1, 4);

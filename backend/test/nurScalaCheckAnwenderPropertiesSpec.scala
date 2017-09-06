@@ -67,7 +67,6 @@ class NurScalaCheckAnwenderPropertiesSpec extends Properties("AnwenderProperties
   } yield AnwenderEntity(nE, pW, nN)
 
   val anwENotInUseGen = for {
-    id <- Gen.posNum[Int]
     nEmail <- myPreferredStringGen.retryUntil(s => !Await.result(db.db.run(db.dal.existsEmail(s)), 100 seconds), 20)
     pW <- myPreferredStringGen
     nName <- myPreferredStringGen.retryUntil(s => !Await.result(db.db.run(db.dal.existsName(s)), 100 seconds), 20)
@@ -108,4 +107,9 @@ class NurScalaCheckAnwenderPropertiesSpec extends Properties("AnwenderProperties
         }
 
       })
+  property("reverse zweimal aufzurufen returniert die urspruengliche Liste") =
+    forAll { list: List[Int] =>
+      list.reverse.reverse == list
+    }
+
 }
