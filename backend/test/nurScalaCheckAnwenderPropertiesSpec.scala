@@ -21,18 +21,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class NurScalaCheckAnwenderPropertiesSpec extends Properties("AnwenderPropertiesSpec") {
 
   def myFixture(prop: () => Prop): Prop = {
-    // Define a shared fixture
-    try {
-      // Shared setup (run at beginning of each test)
-      val fill = new File("./test/fill.sql")
-      //Awaiting  to ensure that db is fully cleaned up and filled  before test is started
-      Await.result(db.db.run(db.dal.dropAllObjectsForTestDB()), 10 seconds)
-      Await.result(db.db.run(db.dal.create), 10 seconds)
-      Await.result(db.db.run(db.dal.runScript(fill.getAbsolutePath)), 10 seconds)
-      prop()
-    } finally {
-      // Shared cleanup (run at end of each test)
-    }
+    val fill = new File("./test/fill.sql")
+    Await.result(db.db.run(db.dal.dropAllObjectsForTestDB()), 10 seconds)
+    Await.result(db.db.run(db.dal.create), 10 seconds)
+    Await.result(db.db.run(db.dal.runScript(fill.getAbsolutePath)), 10 seconds)
+    prop()
   }
 
   val application = new GuiceApplicationBuilder()

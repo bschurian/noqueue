@@ -1,37 +1,31 @@
-import java.io.{ BufferedReader, File, FileReader }
+import java.io.{ File, FileReader }
 
 import models.db.{ DienstleistungEntity, _ }
 import models.{ Anwender, DB, Leiter, UnregistrierterAnwender }
 import org.h2.jdbc.JdbcSQLException
 import org.scalatest.Matchers._
 import org.scalatest._
-import Assertions._
 import org.mindrot.jbcrypt.BCrypt
 
 import scala.concurrent.{ Await, Future }
-import play.api.{ Environment, Mode }
+import play.api.{ Mode }
 import play.api.inject.guice.GuiceApplicationBuilder
-import utils.{ EmailAlreadyInUseException, OneLeiterRequiredException, UnauthorizedException }
+import utils.{ EmailAlreadyInUseException, OneLeiterRequiredException, UnauthorizedException, WspDoesNotExistException }
 
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Future }
 /**
  * Created by anwender on 25.01.2017.
  */
+@DoNotDiscover
 class AnwenderSpec extends AsyncWordSpec {
 
   override def withFixture(test: NoArgAsyncTest) = { // Define a shared fixture
-    try {
-      // Shared setup (run at beginning of each test)
-      val fill = new File("./test/fill.sql")
-      //Awaiting  to ensure that db is fully cleaned up and filled  before test is started
-      Await.result(db.db.run(db.dal.dropAllObjectsForTestDB()), 10 seconds)
-      Await.result(db.db.run(db.dal.create), 10 seconds)
-      Await.result(db.db.run(db.dal.runScript(fill.getAbsolutePath)), 10 seconds)
-      test()
-    } finally {
-      // Shared cleanup (run at end of each test)
-    }
+    val fill = new File("./test/fill.sql")
+    Await.result(db.db.run(db.dal.dropAllObjectsForTestDB()), 10 seconds)
+    Await.result(db.db.run(db.dal.create), 10 seconds)
+    Await.result(db.db.run(db.dal.runScript(fill.getAbsolutePath)), 10 seconds)
+    test()
   }
   val application = new GuiceApplicationBuilder()
     .in(Mode.Test)
@@ -73,6 +67,7 @@ class AnwenderSpec extends AsyncWordSpec {
     "return his profile" in {
       for {
         profil <- anwender.profilAnzeigen()
+        err <- Future.successful(throw new Exception("Intentionally throwing an Error"))
       } yield (profil should equal((expectedAnwender, Some(expectedAdresse))))
     }
     "permit full-on-changing as long as nutzerName and nutzerEmail stay unique" in {
@@ -184,11 +179,12 @@ class AnwenderSpec extends AsyncWordSpec {
       } yield (wsp._1 shouldEqual (expectedWsP.id.get))
     }
     "be able to cancel a WarteschlangePlatz" in {
-      for {
-        a <- anwender.wsVerlassen()
-        b <- anwender.wspAnzeigen() //@ todo FIX
-      } yield (b._1)
-      succeed
+      recoverToSucceededIf[WspDoesNotExistException] {
+        for {
+          a <- anwender.wsVerlassen()
+          b <- anwender.wspAnzeigen() //@ todo FIX
+        } yield (1 should be(2))
+      }
     }
     "be able to see every Betrieb Anwender is in relation with" in {
       anwender.meineBetriebe() map {

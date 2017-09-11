@@ -18,6 +18,26 @@ Gen.choose(1,10).map(_*100).sample
 
 (List(4,5,6)).apply(2)
 
+def id(x:Any) = x
+
+Some(3+4).map{id}
+
+val ammounts = List(2, 9)
+val fruit = List("apples", "bananas", "coconuts")
+val permutationsWithoutSynSugar = ammounts.flatMap {x =>
+  fruit.map{ name =>
+    x+" "+name
+  }
+}
+
+val permutationsFor = for{
+  x <- ammounts
+  name <- fruit
+}yield(x+" "+name) //List("2 apples", "2 bananas", "2 coconuts", "9 apples", "9 bananas", "9 coconuts")
+permutationsFor == permutationsWithoutSynSugar //true
+
+val incr: (Int) => Int = _+1
+val x = incr(5)
 
 /*1 + 2
 def funct():Boolean = {

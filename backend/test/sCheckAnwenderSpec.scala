@@ -2,7 +2,7 @@ import java.io.File
 import java.sql.SQLException
 
 import models.{ Anwender, DB, UnregistrierterAnwender }
-import models.db.{ AnwenderEntity, PK }
+import models.db.{ AnwenderEntity, BetriebEntity, PK }
 import org.h2.jdbc.JdbcSQLException
 import org.scalacheck.Gen
 import org.scalacheck.Arbitrary.arbitrary
@@ -24,18 +24,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrivenPropertyChecks {
 
   override def withFixture(test: NoArgAsyncTest): FutureOutcome = {
-    // Define a shared fixture
-    try {
-      // Shared setup (run at beginning of each test)
-      val fill = new File("./test/fill.sql")
-      //Awaiting  to ensure that db is fully cleaned up and filled  before test is started
-      Await.result(db.db.run(db.dal.dropAllObjectsForTestDB()), 10 seconds)
-      Await.result(db.db.run(db.dal.create), 10 seconds)
-      Await.result(db.db.run(db.dal.runScript(fill.getAbsolutePath)), 10 seconds)
-      test()
-    } finally {
-      // Shared cleanup (run at end of each test)
-    }
+    val fill = new File("./test/fill.sql")
+    Await.result(db.db.run(db.dal.dropAllObjectsForTestDB()), 10 seconds)
+    Await.result(db.db.run(db.dal.create), 10 seconds)
+    Await.result(db.db.run(db.dal.runScript(fill.getAbsolutePath)), 10 seconds)
+    test()
   }
 
   val application = new GuiceApplicationBuilder()
@@ -93,6 +86,7 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
       forAll(anwGen) { anw: Anwender =>
         Await.result(
           anw.anwender.map { anwE =>
+            //throw new EmailAlreadyInUseException
             assert(anwE.id.value > 0L)
           }, 10 seconds
         )
@@ -225,16 +219,19 @@ class sCheckAnwenderSpec extends AsyncFreeSpec with Matchers with GeneratorDrive
     "have no WarteschlangePlatz (an empty queue)" in {
       forAll(anwGen) { anwender =>
         assertThrows[WspDoesNotExistException](
-          try {
-            Await.result(anwender.wspAnzeigen(), 10 seconds)
-          } catch {
-            case (e: java.util.NoSuchElementException) =>
-              e.getStackTrace.map(println(_))
-              throw e
-          }
+          Await.result(anwender.wspAnzeigen(), 10 seconds)
         )
       }
     }
+    /*"be able to show a WarteschlangePlatz" in {
+      forAll(anwGen) { anwender =>
+        for{
+          (anwE, _) <- anwender.profil
+          x <- anwender.wsFuerBestimmtenMitarbeiterBeitreten()
+          wsp <- anwender.wspAnzeigen()
+        } yield (wsp._1 shouldEqual (expectedWsP.id.get))
+      }
+    }*/
     /*
         "be able to show a WarteschlangePlatz" in {
       for {

@@ -1,5 +1,5 @@
 package models.db
-
+// $COVERAGE-OFF$
 case class User(first: String, last: String = "e@example.com", id: Long = 0L)
 
 trait UserTryingOutComponent {
@@ -22,3 +22,4 @@ trait UserTryingOutComponent {
   def allUsers = users.take(20).result.head
   //val id = exec(action)
 }
+// $COVERAGE-ON$
